@@ -1,0 +1,30 @@
+/make_ppt_utf8.py
+/pdf_dump.txt
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environment
+venv/
+env/
+.env
+.venv/
+
+# Private keys (NEVER commit these)
+keys/receiver_private.pem
+
+# VS Code
+.vscode/
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
