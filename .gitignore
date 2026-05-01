@@ -1,5 +1,3 @@
-/make_ppt_utf8.py
-/pdf_dump.txt
 
 # Python
 __pycache__/
@@ -28,3 +26,12 @@ Thumbs.db
 dist/
 build/
 *.egg-info/
+
+# Documentation & reports (not for repo)
+*.md
+*.pdf
+
+# Runtime-generated files
+results/
+uploads/
+static/hist_*.png

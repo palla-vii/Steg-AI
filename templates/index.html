@@ -8,15 +8,89 @@
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+
+<!-- ═══════════════════ LANDING VIEW ═══════════════════ -->
+<div id="landing-view">
+
+    <!-- Decorative orbs (shared aesthetic with dashboard) -->
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+
+    <div class="landing-wrap">
+
+        <!-- Brand -->
+        <div class="landing-brand">
+            <div class="landing-icon"><i class="fas fa-shield-halved"></i></div>
+            <div>
+                <h1 class="landing-title">StegAI</h1>
+                <p class="landing-sub">AI-Guided Secure Image Steganography Platform</p>
+            </div>
+        </div>
+
+        <!-- Input card -->
+        <div class="landing-card">
+
+            <!-- File selector (styled dropdown feel) -->
+            <div class="landing-field">
+                <label class="landing-label"><i class="fas fa-image"></i> Carrier Image</label>
+                <div class="landing-file-row" id="landing-drop-zone">
+                    <div class="landing-file-display" id="landing-file-display">
+                        <i class="fas fa-cloud-arrow-up" id="landing-file-icon"></i>
+                        <span id="landing-file-name">Select or drop an image file…</span>
+                    </div>
+                    <button type="button" class="landing-browse-btn" onclick="document.getElementById('landing-file-input').click()">
+                        Browse
+                    </button>
+                    <input type="file" id="landing-file-input" accept=".png,.bmp,.tiff,.webp,.jpg,.jpeg" style="display:none">
+                </div>
+            </div>
+
+            <!-- Message input -->
+            <div class="landing-field">
+                <label class="landing-label"><i class="fas fa-message"></i> Secret Message <span class="landing-optional">(for embedding)</span></label>
+                <textarea id="landing-message" class="landing-textarea" rows="3"
+                    placeholder="Type your secret message here…"></textarea>
+            </div>
+
+            <!-- Three action buttons -->
+            <div class="landing-btn-row">
+                <button class="landing-btn landing-btn-embed" onclick="launchAction('embed')">
+                    <i class="fas fa-lock"></i>
+                    <span>Encrypt &amp; Embed</span>
+                </button>
+                <button class="landing-btn landing-btn-extract" onclick="launchAction('extract')">
+                    <i class="fas fa-magnifying-glass"></i>
+                    <span>Extract &amp; Decrypt</span>
+                </button>
+                <button class="landing-btn landing-btn-ai" onclick="launchAction('ai')">
+                    <i class="fas fa-brain"></i>
+                    <span>AI Steganalysis</span>
+                </button>
+            </div>
+
+        </div><!-- /landing-card -->
+
+        <p class="landing-footer">
+            <i class="fas fa-shield-halved"></i>&nbsp; End-to-end encrypted &nbsp;·&nbsp;
+            <i class="fas fa-eye-slash"></i>&nbsp; Perceptually invisible &nbsp;·&nbsp;
+            <i class="fas fa-brain"></i>&nbsp; Neural steganalysis
+        </p>
+
+    </div><!-- /landing-wrap -->
+</div><!-- /landing-view -->
+
+<!-- ═══════════════════ APP VIEW ═══════════════════ -->
+<div id="app-view" style="display:none;opacity:0;">
 
 <!-- Ambient orbs -->
 <div class="orb orb-1"></div>
 <div class="orb orb-2"></div>
 <div class="orb orb-3"></div>
+
 
 <!-- ═══════════════════ SIDEBAR ═══════════════════ -->
 <aside class="sidebar">
@@ -30,14 +104,26 @@
         </div>
     </div>
 
-    <!-- Active status -->
-    <div class="status-bar">
-        <div class="status-dot"></div>
-        AES-256-GCM &amp; ECDH Active
+    <!-- Dark mode toggle -->
+    <button id="theme-toggle" aria-label="Toggle dark mode">
+        <i class="fas fa-moon" id="theme-icon"></i>
+        <span id="theme-label">Dark Mode</span>
+    </button>
+
+    <!-- Extraction result panel (shown in sidebar after decrypt) -->
+    <div id="sidebar-result" style="display:none;">
+        <div class="sidebar-result-header">
+            <i class="fas fa-circle-check"></i>
+            <span>Decrypted Message</span>
+            <button class="sidebar-result-close" onclick="document.getElementById('sidebar-result').style.display='none'" aria-label="Close">
+                <i class="fas fa-xmark"></i>
+            </button>
+        </div>
+        <div class="sidebar-result-body" id="sidebar-result-text"></div>
     </div>
 
-    <!-- Form -->
-    <form id="main-form" action="/" method="POST" enctype="multipart/form-data">
+    <!-- Form — submits via Fetch API, no full page reload -->
+    <form id="main-form" enctype="multipart/form-data">
 
         <div class="section-label" style="margin-bottom:0.6rem;">① Carrier Image</div>
         <div class="drop-zone" id="drop-zone">
@@ -61,45 +147,20 @@
         </div>
 
         <div class="btn-group">
-            <button type="submit" name="action" value="embed" class="btn btn-embed" id="btn-embed" onclick="showLoading('embed')">
+            <button type="button" class="btn btn-embed" id="btn-embed" onclick="submitJob('embed')">
                 <i class="fas fa-lock"></i> Encrypt &amp; Embed
             </button>
-            <button type="submit" name="action" value="extract" class="btn btn-extract" id="btn-extract" onclick="showLoading('extract')">
+            <button type="button" class="btn btn-extract" id="btn-extract" onclick="submitJob('extract')">
                 <i class="fas fa-magnifying-glass"></i> Extract &amp; Decrypt
+            </button>
+            <button type="button" class="btn btn-ai" id="btn-ai" onclick="runAiAnalysis()">
+                <i class="fas fa-brain"></i> AI Steganalysis
             </button>
         </div>
 
     </form>
 
-    <!-- Sidebar info grid -->
-    <div class="info-grid">
-        <div class="info-card">
-            <div class="ic-label">Cipher</div>
-            <div class="ic-val green">AES-256-GCM</div>
-        </div>
-        <div class="info-card">
-            <div class="ic-label">Key Exchange</div>
-            <div class="ic-val blue">Ephemeral ECDH</div>
-        </div>
-        <div class="info-card">
-            <div class="ic-label">Embedding</div>
-            <div class="ic-val">LSB Adaptive</div>
-        </div>
-        <div class="info-card">
-            <div class="ic-label">ML Safety</div>
-            <div class="ic-val green">Random Forest</div>
-        </div>
-    </div>
 
-    <!-- Tech tags -->
-    <div class="tag-row" style="margin-top:1.25rem;">
-        <span class="tag">OpenCV</span>
-        <span class="tag">NumPy</span>
-        <span class="tag">Scikit-learn</span>
-        <span class="tag">Flask</span>
-        <span class="tag">PSNR</span>
-        <span class="tag">SSIM</span>
-    </div>
 
 </aside>
 
@@ -111,46 +172,40 @@
         <div>
             <div class="page-title">Steganography Analysis</div>
         </div>
-        <div class="metric-row">
-            <div class="metric-chip blue" id="psnr-chip">
+        <div class="metric-row" id="metric-row">
+            <div class="metric-chip blue" id="psnr-chip" style="display:none;">
                 <i class="fas fa-signal"></i>
-                {% if psnr %}PSNR {{ psnr }} dB{% else %}PSNR — dB{% endif %}
+                <span id="psnr-val">PSNR &mdash; dB</span>
             </div>
-            <div class="metric-chip green" id="ssim-chip">
+            <div class="metric-chip green" id="ssim-chip" style="display:none;">
                 <i class="fas fa-eye"></i>
-                {% if ssim %}SSIM {{ ssim }}{% else %}SSIM —{% endif %}
+                <span id="ssim-val">SSIM &mdash;</span>
             </div>
-            <div class="metric-chip violet" id="dims-chip">
+            <div class="metric-chip violet" id="dims-chip" style="display:none;">
                 <i class="fas fa-microchip"></i>
-                {% if img_dims %}{{ img_dims }}{% else %}Native Res{% endif %}
+                <span id="dims-val">Native Res</span>
+            </div>
+            <div class="metric-chip" id="ecc-chip" style="display:none;background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.2);color:var(--amber);">
+                <i class="fas fa-key"></i>
+                <span id="ecc-val">ECDH &mdash;</span>
             </div>
         </div>
     </div>
 
-    <!-- Error / success / warning alerts -->
-    {% if jpeg_warning %}
-    <div class="alert warning" role="alert" style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.25);color:var(--amber);">
-        <i class="fas fa-triangle-exclamation"></i>
-        <span><strong>JPEG / Lossy Format Detected:</strong> JPEG recompression destroys LSB data. For reliable embedding &amp; extraction, please use <strong>PNG, BMP, TIFF, or WebP</strong> instead.</span>
-    </div>
-    {% endif %}
-
-    {% if error %}
-    <div class="alert error" role="alert">
-        <i class="fas fa-circle-exclamation"></i>
-        <span>{{ error }}</span>
-    </div>
-    {% endif %}
-
-    {% if message and not message.startswith('⚠') and not message.startswith('❌') %}
-    <div class="alert success" role="alert">
-        <i class="fas fa-circle-check"></i>
-        <span>Message successfully extracted and decrypted.</span>
-    </div>
-    {% endif %}
+    <!-- Alerts area (dynamically populated) -->
+    <div id="alerts-area"></div>
 
     <!-- Content grid -->
     <div class="content-grid">
+
+        <!-- Extraction Output — shown above images when extraction completes -->
+        <div class="card card-span-2" id="extraction-output" style="display:none;animation:slide-in 0.4s ease;">
+            <div class="card-header">
+                <div class="card-title"><i class="fas fa-terminal"></i> Extraction Output</div>
+                <span class="card-badge" id="extract-badge" style="background:rgba(16,185,129,0.1);color:var(--emerald);border-color:rgba(16,185,129,0.2);">Decrypted</span>
+            </div>
+            <div class="output-terminal" id="extracted-message"></div>
+        </div>
 
         <!-- Original Image -->
         <div class="card">
@@ -159,14 +214,11 @@
                 <span class="card-badge">Input</span>
             </div>
             <div class="preview-pane" id="original-preview">
-                {% if uploaded_image %}
-                    <img src="{{ uploaded_image }}" alt="Original carrier image">
-                {% else %}
-                    <div class="empty-state">
-                        <i class="fas fa-image"></i>
-                        <p>Upload an image to get started</p>
-                    </div>
-                {% endif %}
+                <div class="empty-state" id="orig-empty">
+                    <i class="fas fa-image"></i>
+                    <p>Upload an image to get started</p>
+                </div>
+                <img id="orig-img" src="" alt="Original carrier image" style="display:none;">
             </div>
         </div>
 
@@ -174,70 +226,88 @@
         <div class="card">
             <div class="card-header">
                 <div class="card-title"><i class="fas fa-shield-halved"></i> Stego Output</div>
-                {% if stego_image %}
-                <span class="card-badge" style="background:rgba(16,185,129,0.1);color:var(--emerald);border-color:rgba(16,185,129,0.2);">✓ Embedded</span>
-                {% else %}
-                <span class="card-badge">Output</span>
-                {% endif %}
+                <span class="card-badge" id="stego-badge">Output</span>
             </div>
             <div class="preview-pane" id="stego-preview">
-                {% if stego_image %}
-                    <img src="{{ stego_image }}" alt="Stego output image">
-                    <a href="{{ stego_image }}" download="stego.png" class="download-btn">
-                        <i class="fas fa-download"></i> Save
-                    </a>
-                {% else %}
-                    <div class="empty-state">
-                        <i class="fas fa-shield-halved"></i>
-                        <p>Stego image will appear here</p>
-                    </div>
-                {% endif %}
+                <div class="empty-state" id="stego-empty">
+                    <i class="fas fa-shield-halved"></i>
+                    <p>Stego image will appear here</p>
+                </div>
+                <img id="stego-img" src="" alt="Stego output image" style="display:none;">
+                <a id="stego-download" href="#" class="download-btn" style="display:none;">
+                    <i class="fas fa-download"></i> Save
+                </a>
             </div>
         </div>
 
-        <!-- Histogram -->
-        <div class="card card-span-2">
+        <!-- Histogram (hidden during AI-only analysis) -->
+        <div class="card card-span-2" id="hist-card">
             <div class="card-header">
                 <div class="card-title"><i class="fas fa-chart-area"></i> Pixel Intensity Histogram</div>
-                {% if histogram %}
-                <span class="card-badge" style="background:rgba(139,92,246,0.1);color:var(--violet);border-color:rgba(139,92,246,0.2);">Generated</span>
-                {% else %}
-                <span class="card-badge">Analysis</span>
-                {% endif %}
+                <span class="card-badge" id="hist-badge">Analysis</span>
             </div>
-            <div class="preview-pane" style="min-height:200px;">
-                {% if histogram %}
-                    <div class="histogram-wrap">
-                        <img src="{{ histogram }}" alt="Pixel intensity histogram comparison">
-                    </div>
-                {% else %}
-                    <div class="empty-state">
-                        <i class="fas fa-chart-area"></i>
-                        <p>Histogram comparison appears after embedding</p>
-                    </div>
-                {% endif %}
+            <div class="preview-pane" style="min-height:200px;" id="hist-pane">
+                <div class="empty-state" id="hist-empty">
+                    <i class="fas fa-chart-area"></i>
+                    <p>Histogram comparison appears after embedding</p>
+                </div>
+                <div class="histogram-wrap" id="hist-wrap" style="display:none;">
+                    <img id="hist-img" src="" alt="Pixel intensity histogram comparison">
+                </div>
             </div>
         </div>
 
-        <!-- Extraction Output -->
-        {% if message %}
-        <div class="card card-span-2" id="extraction-output" style="animation: slide-in 0.4s ease;">
+
+        <!-- Security Report (hidden until embed/extract result) -->
+        <div class="card card-span-2" id="security-report" style="display:none;animation:slide-in 0.5s ease;">
             <div class="card-header">
-                <div class="card-title"><i class="fas fa-terminal"></i> Extraction Output</div>
-                {% if message.startswith('⚠') or message.startswith('❌') %}
-                <span class="card-badge" style="background:rgba(239,68,68,0.1);color:var(--red);border-color:rgba(239,68,68,0.2);">Failed</span>
-                {% else %}
-                <span class="card-badge" style="background:rgba(16,185,129,0.1);color:var(--emerald);border-color:rgba(16,185,129,0.2);">Decrypted</span>
-                {% endif %}
+                <div class="card-title"><i class="fas fa-shield-halved"></i> Security Report</div>
+                <span class="card-badge" style="background:rgba(245,158,11,0.1);color:var(--amber);border-color:rgba(245,158,11,0.2);">Live</span>
             </div>
-            <div class="output-terminal {% if message.startswith('⚠') or message.startswith('❌') %}error{% endif %}" id="extracted-message">{{ message }}</div>
+            <div class="security-grid" id="security-grid">
+                <!-- Populated by renderResult() -->
+            </div>
         </div>
-        {% endif %}
+
+        <!-- AI Steganalysis Card (hidden until embed result) -->
+        <div class="card card-span-2" id="ai-card" style="display:none;animation:slide-in 0.6s ease;">
+            <div class="card-header">
+                <div class="card-title"><i class="fas fa-brain"></i> AI Steganalysis</div>
+                <span class="card-badge" id="ai-badge" style="background:rgba(139,92,246,0.1);color:var(--violet);border-color:rgba(139,92,246,0.2);">Neural Detector</span>
+            </div>
+            <div class="ai-body">
+                <div class="ai-top-row">
+                    <span class="ai-verdict-badge" id="ai-verdict-badge">
+                        <i id="ai-verdict-icon" class="fas fa-circle-check"></i>
+                        <span id="ai-verdict-text">NOT DETECTED</span>
+                    </span>
+                    <span class="ai-pct">Detection confidence: <strong id="ai-confidence-pct">0</strong>%</span>
+                </div>
+                <div>
+                    <div class="ai-bar-track">
+                        <div class="ai-bar-fill" id="ai-bar-fill"></div>
+                    </div>
+                    <div class="ai-bar-labels">
+                        <span>0% &mdash; Undetectable</span>
+                        <span>50% &mdash; Threshold</span>
+                        <span>100% &mdash; Detected</span>
+                    </div>
+                </div>
+                <div class="ai-explanation" id="ai-explanation"></div>
+                <div class="ai-features">
+                    <span class="ai-feature-pill">LSB Correlation</span>
+                    <span class="ai-feature-pill">Noise Residual</span>
+                    <span class="ai-feature-pill">Chi-Square</span>
+                    <span class="ai-feature-pill">Kurtosis</span>
+                    <span class="ai-feature-pill">Entropy</span>
+                    <span class="ai-feature-pill">MLP(64,32)</span>
+                </div>
+            </div>
+        </div>
 
     </div><!-- /content-grid -->
 </main>
-
-<!-- ═══════════════════ LOADING OVERLAY ═══════════════════ -->
+</div><!-- ═══════════════════ LOADING OVERLAY ═══════════════════ -->
 <div id="loading-overlay">
     <div class="spinner"></div>
     <div>
@@ -249,76 +319,661 @@
     </div>
 </div>
 
+</div><!-- /app-view -->
+
 <script>
-    /* ── Drag & Drop ──────────────────────────────────────────── */
-    const dropZone   = document.getElementById('drop-zone');
-    const fileInput  = document.getElementById('image-input');
-    const fileChosen = document.getElementById('file-chosen');
-    const fileLabel  = document.getElementById('file-name-label');
+/* ─────────────────────────────────────────────────────────────────────────
+   Landing page logic
+───────────────────────────────────────────────────────────────────────── */
+const landingFileInput   = document.getElementById('landing-file-input');
+const landingFileName    = document.getElementById('landing-file-name');
+const landingFileIcon    = document.getElementById('landing-file-icon');
+const landingDropZone    = document.getElementById('landing-drop-zone');
 
-    function showFileName(name) {
-        fileLabel.textContent = name;
-        fileChosen.style.display = 'block';
+// Show selected file name on landing
+function setLandingFile(file) {
+    if (!file) return;
+    landingFileName.textContent = file.name;
+    landingFileIcon.className   = 'fas fa-circle-check';
+    landingFileIcon.style.color = 'var(--emerald)';
+}
+
+landingFileInput.addEventListener('change', () => {
+    if (landingFileInput.files[0]) setLandingFile(landingFileInput.files[0]);
+});
+
+// Drag-and-drop on landing zone
+landingDropZone.addEventListener('dragover', e => { e.preventDefault(); landingDropZone.classList.add('drag-over'); });
+landingDropZone.addEventListener('dragleave', ()  => landingDropZone.classList.remove('drag-over'));
+landingDropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    landingDropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) {
+        // Create a DataTransfer to assign to the hidden file input
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        landingFileInput.files = dt.files;
+        setLandingFile(file);
+    }
+});
+
+// Click anywhere on the display row opens the file picker
+document.getElementById('landing-file-display').addEventListener('click', () => {
+    landingFileInput.click();
+});
+
+/* ─────────────────────────────────────────────────────────────────────────
+   launchAction — transfer inputs then transition to app
+───────────────────────────────────────────────────────────────────────── */
+function launchAction(action) {
+    const file    = landingFileInput.files[0];
+    const message = document.getElementById('landing-message').value.trim();
+
+    // Validate
+    if (!file) {
+        const disp = document.getElementById('landing-file-display');
+        disp.style.animation = 'none';
+        disp.offsetHeight;  // reflow
+        disp.style.animation = 'shake 0.35s ease';
+        return;
+    }
+    if (action === 'embed' && !message) {
+        const ta = document.getElementById('landing-message');
+        ta.style.animation = 'none';
+        ta.offsetHeight;
+        ta.style.animation = 'shake 0.35s ease';
+        ta.focus();
+        return;
     }
 
-    fileInput.addEventListener('change', () => {
-        if (fileInput.files[0]) showFileName(fileInput.files[0].name);
-    });
+    // ── Transfer file to the sidebar input ─────────────────────────────
+    const appFileInput = document.getElementById('image-input');
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    appFileInput.files = dt.files;
+    // Trigger sidebar preview
+    appFileInput.dispatchEvent(new Event('change'));
 
-    dropZone.addEventListener('dragover', e => {
-        e.preventDefault();
-        dropZone.classList.add('drag-over');
-    });
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-    dropZone.addEventListener('drop', e => {
-        e.preventDefault();
-        dropZone.classList.remove('drag-over');
-        if (e.dataTransfer.files[0]) {
-            fileInput.files = e.dataTransfer.files;
-            showFileName(e.dataTransfer.files[0].name);
+    // ── Transfer message ────────────────────────────────────────────────
+    if (message) {
+        const msgEl = document.getElementById('msg-input');
+        if (msgEl) {
+            msgEl.value = message;
+            msgEl.dispatchEvent(new Event('input'));
         }
-    });
-
-    /* ── Live Character Counter ───────────────────────────────── */
-    const msgInput  = document.getElementById('msg-input');
-    const charCount = document.getElementById('char-count');
-
-    msgInput.addEventListener('input', () => {
-        const len = msgInput.value.length;
-        charCount.textContent = len;
-        charCount.style.color = len > 1800 ? 'var(--amber)' : len > 1950 ? 'var(--red)' : 'var(--text-3)';
-    });
-
-    /* ── Loading Overlay ─────────────────────────────────────── */
-    const overlay = document.getElementById('loading-overlay');
-
-    function showLoading(action) {
-        const form = document.getElementById('main-form');
-        const file = document.getElementById('image-input');
-
-        /* Only block if a file is actually selected */
-        if (!file.files || !file.files[0]) return;
-
-        const isEmbed   = action === 'embed';
-        const title     = document.getElementById('loading-title');
-        const sub       = document.getElementById('loading-sub');
-        const fill      = document.getElementById('progress-fill');
-
-        title.textContent = isEmbed ? 'Encrypting & Embedding…' : 'Extracting & Decrypting…';
-        sub.textContent   = isEmbed
-            ? 'AES-256 → ML block analysis → LSB embedding'
-            : 'LSB extraction → AES-256 decryption';
-
-        /* Reset animation */
-        fill.style.animation = 'none';
-        fill.offsetHeight;   /* reflow */
-        fill.style.animation = '';
-
-        overlay.classList.add('active');
     }
 
-    /* Hide overlay if the page is already loaded (e.g. back-navigation) */
-    window.addEventListener('pageshow', () => overlay.classList.remove('active'));
+    // ── Animate: landing fades up, app fades in ─────────────────────────
+    const landingView = document.getElementById('landing-view');
+    const appView     = document.getElementById('app-view');
+
+    landingView.style.transition = 'opacity 0.45s ease, transform 0.45s ease';
+    landingView.style.opacity    = '0';
+    landingView.style.transform  = 'translateY(-24px)';
+
+    setTimeout(() => {
+        landingView.style.display = 'none';
+        appView.style.display     = 'flex';
+        appView.style.transition  = 'opacity 0.4s ease';
+        // Force reflow before setting opacity so transition fires
+        appView.offsetHeight;
+        appView.style.opacity = '1';
+
+        // ── Auto-trigger the chosen action ──────────────────────────────
+        setTimeout(() => {
+            if (action === 'embed')   submitJob('embed');
+            else if (action === 'extract') submitJob('extract');
+            else if (action === 'ai')      runAiAnalysis();
+        }, 80);
+    }, 450);
+}
+</script>
+
+<script>
+/* ─────────────────────────────────────────────────────────────────────────
+   Drag & Drop + file chooser
+───────────────────────────────────────────────────────────────────────── */
+const dropZone   = document.getElementById('drop-zone');
+const fileInput  = document.getElementById('image-input');
+const fileChosen = document.getElementById('file-chosen');
+const fileLabel  = document.getElementById('file-name-label');
+
+function showFileName(name) {
+    fileLabel.textContent = name;
+    fileChosen.style.display = 'block';
+    // Also preview the selected image immediately
+    const file = fileInput.files[0];
+    if (file) {
+        const url = URL.createObjectURL(file);
+        const origImg   = document.getElementById('orig-img');
+        const origEmpty = document.getElementById('orig-empty');
+        origImg.src = url;
+        origImg.style.display = 'block';
+        origEmpty.style.display = 'none';
+    }
+}
+
+fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) showFileName(fileInput.files[0].name);
+});
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) {
+        fileInput.files = e.dataTransfer.files;
+        showFileName(e.dataTransfer.files[0].name);
+    }
+});
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Live character counter
+───────────────────────────────────────────────────────────────────────── */
+const msgInput  = document.getElementById('msg-input');
+const charCount = document.getElementById('char-count');
+
+msgInput.addEventListener('input', () => {
+    const len = msgInput.value.length;
+    charCount.textContent = len;
+    charCount.style.color = len > 1950 ? 'var(--red)' : len > 1800 ? 'var(--amber)' : 'var(--text-3)';
+});
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Overlay helpers
+───────────────────────────────────────────────────────────────────────── */
+const overlay = document.getElementById('loading-overlay');
+const stages  = {
+    embed:   ['Uploading image…', 'Running ECDH key exchange…', 'AES-256-GCM encrypting…', 'ML block analysis…', 'LSB embedding…', 'Computing PSNR / SSIM…'],
+    extract: ['Uploading image…', 'Scanning LSBs…', 'Parsing payload header…', 'ECDH key recovery…', 'AES-256-GCM decrypting…'],
+};
+
+function startOverlay(action) {
+    const title = document.getElementById('loading-title');
+    const sub   = document.getElementById('loading-sub');
+    const fill  = document.getElementById('progress-fill');
+
+    title.textContent = action === 'embed' ? 'Encrypting & Embedding…' : 'Extracting & Decrypting…';
+
+    // Reset progress animation
+    fill.style.animation = 'none';
+    fill.offsetHeight;
+    fill.style.animation = '';
+
+    overlay.classList.add('active');
+
+    // Cycle through stage labels every ~800 ms
+    const stageList = stages[action] || stages.embed;
+    let idx = 0;
+    sub.textContent = stageList[0];
+
+    const interval = setInterval(() => {
+        idx = (idx + 1) % stageList.length;
+        sub.textContent = stageList[idx];
+    }, 900);
+
+    return interval;   // caller can clearInterval when done
+}
+
+function stopOverlay(interval) {
+    clearInterval(interval);
+    overlay.classList.remove('active');
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Alert helpers
+───────────────────────────────────────────────────────────────────────── */
+const alertsArea = document.getElementById('alerts-area');
+
+function clearAlerts() { alertsArea.innerHTML = ''; }
+
+function addAlert(type, html) {
+    // type: 'error' | 'success' | 'warning'
+    const colorMap = {
+        error:   'background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.25);color:var(--red);',
+        success: 'background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.25);color:var(--emerald);',
+        warning: 'background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.25);color:var(--amber);',
+    };
+    const div = document.createElement('div');
+    div.className = `alert ${type}`;
+    div.setAttribute('role', 'alert');
+    div.style.cssText = colorMap[type] || '';
+    div.innerHTML = html;
+    alertsArea.appendChild(div);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Result renderer
+───────────────────────────────────────────────────────────────────────── */
+function renderResult(result) {
+    clearAlerts();
+
+    // JPEG warning
+    if (result.jpeg_warning) {
+        addAlert('warning',
+            '<i class="fas fa-triangle-exclamation"></i> ' +
+            '<span><strong>JPEG / Lossy Format Detected:</strong> JPEG recompression destroys LSB data. ' +
+            'Please use <strong>PNG, BMP, TIFF, or WebP</strong> instead.</span>');
+    }
+
+    // Metric chips — reveal only when data is available
+    if (result.psnr) {
+        document.getElementById('psnr-val').textContent = 'PSNR ' + result.psnr + ' dB';
+        document.getElementById('psnr-chip').style.display = 'flex';
+    }
+    if (result.ssim) {
+        document.getElementById('ssim-val').textContent = 'SSIM ' + result.ssim;
+        document.getElementById('ssim-chip').style.display = 'flex';
+    }
+    if (result.img_dims) {
+        document.getElementById('dims-val').textContent = result.img_dims;
+        document.getElementById('dims-chip').style.display = 'flex';
+    }
+
+    // ECC fingerprint chip (proves ECDH ran) — reveal only after operation
+    if (result.eph_pub_fingerprint) {
+        const fp      = result.eph_pub_fingerprint;
+        const eccChip = document.getElementById('ecc-chip');
+        const eccVal  = document.getElementById('ecc-val');
+        eccVal.textContent         = 'ECDH ' + fp + '...';
+        eccChip.style.display      = 'flex';
+        eccChip.style.background   = 'rgba(16,185,129,0.08)';
+        eccChip.style.borderColor  = 'rgba(16,185,129,0.25)';
+        eccChip.style.color        = 'var(--emerald)';
+
+        // Security Report card
+        const reportCard = document.getElementById('security-report');
+        const grid       = document.getElementById('security-grid');
+        const s          = result.embed_stats;
+        let mlRow = '';
+        if (s) {
+            const safePct = s.total_bits > 0 ? ((s.bits_in_safe / s.total_bits) * 100).toFixed(1) : '0';
+            const capPct  = s.capacity_bits > 0 ? ((s.total_bits / s.capacity_bits) * 100).toFixed(2) : '0';
+            mlRow = '<div class="sec-item">' +
+                      '<div class="sec-label"><i class="fas fa-brain"></i> ML Blocks Used</div>' +
+                      '<div class="sec-val green">' + s.safe_blocks + ' safe blocks (Random Forest)</div>' +
+                    '</div>' +
+                    '<div class="sec-item">' +
+                      '<div class="sec-label"><i class="fas fa-chart-bar"></i> Bits in Safe Blocks</div>' +
+                      '<div class="sec-val green">' + safePct + '% &nbsp;(' + s.bits_in_safe.toLocaleString() + ' / ' + s.total_bits.toLocaleString() + ' bits)</div>' +
+                    '</div>' +
+                    '<div class="sec-item">' +
+                      '<div class="sec-label"><i class="fas fa-database"></i> Image Capacity Used</div>' +
+                      '<div class="sec-val">' + capPct + '% of ' + (s.capacity_bits / 8 / 1024).toFixed(1) + ' KB</div>' +
+                    '</div>';
+        }
+        grid.innerHTML =
+            '<div class="sec-item">' +
+              '<div class="sec-label"><i class="fas fa-key"></i> Key Exchange</div>' +
+              '<div class="sec-val green">Ephemeral ECDH (SECP256R1)</div>' +
+            '</div>' +
+            '<div class="sec-item">' +
+              '<div class="sec-label"><i class="fas fa-fingerprint"></i> Ephemeral Pub Key</div>' +
+              '<div class="sec-val mono">' + fp + '&#x2026; <span style="color:var(--text-3);font-size:0.75rem;">(first 8 of 65 bytes)</span></div>' +
+            '</div>' +
+            '<div class="sec-item">' +
+              '<div class="sec-label"><i class="fas fa-lock"></i> Cipher</div>' +
+              '<div class="sec-val green">AES-256-GCM + HKDF-SHA256</div>' +
+            '</div>' +
+            '<div class="sec-item">' +
+              '<div class="sec-label"><i class="fas fa-circle-info"></i> Raw AES Key in Payload</div>' +
+              '<div class="sec-val" style="color:var(--emerald);">Never stored &#8212; derived independently both sides</div>' +
+            '</div>' +
+            mlRow;
+        reportCard.style.display = 'block';
+    }
+
+    // Stego image
+    if (result.stego_image) {
+        const stegoImg   = document.getElementById('stego-img');
+        const stegoEmpty = document.getElementById('stego-empty');
+        const stegoDl    = document.getElementById('stego-download');
+        const stegoBadge = document.getElementById('stego-badge');
+
+        // Display image (cache-bust so browser doesn't show old result)
+        stegoImg.src = result.stego_image + '?t=' + Date.now();
+        stegoImg.style.display   = 'block';
+        stegoEmpty.style.display = 'none';
+
+        // Download link — href points to Flask /results/ route (serves as_attachment)
+        // Extract the real filename so the browser saves it with the correct name
+        const dlFilename = result.stego_image.split('/').pop();  // e.g. "stego_abc123.png"
+        stegoDl.href = result.stego_image;
+        stegoDl.setAttribute('download', dlFilename);
+        stegoDl.style.display = 'inline-flex';
+
+        stegoBadge.textContent   = 'Embedded';
+        stegoBadge.style.cssText = 'background:rgba(16,185,129,0.1);color:var(--emerald);border-color:rgba(16,185,129,0.2);';
+        addAlert('success', '<i class="fas fa-circle-check"></i> <span>Message encrypted and embedded successfully.</span>');
+    }
+
+    // Histogram
+    if (result.histogram) {
+        const histWrap  = document.getElementById('hist-wrap');
+        const histImg   = document.getElementById('hist-img');
+        const histEmpty = document.getElementById('hist-empty');
+        const histBadge = document.getElementById('hist-badge');
+        histImg.src              = result.histogram + '?t=' + Date.now();
+        histWrap.style.display   = 'flex';
+        histEmpty.style.display  = 'none';
+        histBadge.textContent    = 'Generated';
+        histBadge.style.cssText  = 'background:rgba(139,92,246,0.1);color:var(--violet);border-color:rgba(139,92,246,0.2);';
+    }
+
+    // Extraction message
+    if (result.message) {
+        const card    = document.getElementById('extraction-output');
+        const msgEl   = document.getElementById('extracted-message');
+        const badge   = document.getElementById('extract-badge');
+        msgEl.textContent  = result.message;
+        card.style.display = 'block';
+        const isFail = result.message.startsWith('Invalid') || result.message.startsWith('No hidden');
+        if (isFail) {
+            msgEl.classList.add('error');
+            badge.textContent   = 'Failed';
+            badge.style.cssText = 'background:rgba(239,68,68,0.1);color:var(--red);border-color:rgba(239,68,68,0.2);';
+            addAlert('error', '<i class="fas fa-circle-exclamation"></i> <span>' + escHtml(result.message) + '</span>');
+        } else {
+            msgEl.classList.remove('error');
+            badge.textContent   = 'Decrypted';
+            badge.style.cssText = 'background:rgba(16,185,129,0.1);color:var(--emerald);border-color:rgba(16,185,129,0.2);';
+            addAlert('success', '<i class="fas fa-circle-check"></i> <span>Message extracted and decrypted via ECDH key recovery.</span>');
+
+            // Show decrypted message in sidebar
+            const sidebarResult = document.getElementById('sidebar-result');
+            const sidebarText   = document.getElementById('sidebar-result-text');
+            if (sidebarResult && sidebarText) {
+                // Strip the "Decrypted message: " prefix for cleaner display
+                const raw = result.message.replace(/^Decrypted message:\s*/i, '');
+                sidebarText.textContent = raw;
+                sidebarResult.style.display = 'block';
+            }
+        }
+    }
+
+    // AI Steganalysis
+    if (result.ai_analysis) {
+        renderAiAnalysis(result.ai_analysis);
+    }
+}
+
+function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   AI Steganalysis card renderer
+───────────────────────────────────────────────────────────────────────── */
+function renderAiAnalysis(ai) {
+    const card        = document.getElementById('ai-card');
+    const badge       = document.getElementById('ai-verdict-badge');
+    const icon        = document.getElementById('ai-verdict-icon');
+    const verdictText = document.getElementById('ai-verdict-text');
+    const pctEl       = document.getElementById('ai-confidence-pct');
+    const barFill     = document.getElementById('ai-bar-fill');
+    const explanation = document.getElementById('ai-explanation');
+
+    const lvl  = ai.verdict_level;   // 'safe' | 'warn' | 'danger'
+    const pct  = ai.confidence_pct;  // e.g. 11.4
+
+    // Verdict badge
+    badge.className = 'ai-verdict-badge ' + lvl;
+    verdictText.textContent = ai.verdict;
+    icon.className = lvl === 'safe' ? 'fas fa-circle-check'
+                   : lvl === 'warn' ? 'fas fa-triangle-exclamation'
+                   : 'fas fa-circle-exclamation';
+
+    // Confidence %
+    pctEl.textContent = pct;
+
+    // Animated bar (defer so CSS transition fires)
+    barFill.className = 'ai-bar-fill ' + lvl;
+    setTimeout(() => { barFill.style.width = pct + '%'; }, 60);
+
+    // Explanation block
+    explanation.className   = 'ai-explanation ' + lvl;
+    explanation.textContent = ai.explanation;
+
+    // Show card
+    card.style.display = 'block';
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Standalone AI Steganalysis
+───────────────────────────────────────────────────────────────────────── */
+async function runAiAnalysis() {
+    const file = fileInput.files[0];
+    if (!file) {
+        addAlert('error', '<i class="fas fa-circle-exclamation"></i> <span>Please select an image file first.</span>');
+        return;
+    }
+
+    clearAlerts();
+    clearDashboard();
+
+    // AI analysis doesn't produce a histogram — hide that card
+    const histCardEl = document.getElementById('hist-card');
+    if (histCardEl) histCardEl.style.display = 'none';
+
+    // Disable all buttons + show loading state on AI button
+    const btnAi      = document.getElementById('btn-ai');
+    const btnEmbed   = document.getElementById('btn-embed');
+    const btnExtract = document.getElementById('btn-extract');
+    btnAi.disabled      = true;
+    btnEmbed.disabled   = true;
+    btnExtract.disabled = true;
+    btnAi.innerHTML     = '<i class="fas fa-spinner fa-spin"></i> Analysing…';
+
+    try {
+        const fd = new FormData();
+        fd.append('image', file);
+
+        const resp = await fetch('/analyse', { method: 'POST', body: fd });
+        const data = await resp.json();
+
+        if (!resp.ok || data.error) {
+            throw new Error(data.error || `Server error ${resp.status}`);
+        }
+
+        renderAiAnalysis(data.ai_analysis);
+        addAlert('success', '<i class="fas fa-brain"></i> <span>AI steganalysis complete.</span>');
+
+    } catch (err) {
+        addAlert('error', `<i class="fas fa-circle-exclamation"></i> <span>${escHtml(err.message)}</span>`);
+    } finally {
+        btnAi.disabled      = false;
+        btnEmbed.disabled   = false;
+        btnExtract.disabled = false;
+        btnAi.innerHTML     = '<i class="fas fa-brain"></i> AI Steganalysis';
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Async submit + polling
+   POST /process  -> { job_id }
+   Poll GET /status/<job_id> every 500 ms until status === "done"|"error"
+───────────────────────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────────
+   Dashboard reset — call before every new action
+───────────────────────────────────────────────────────────────────────── */
+function clearDashboard() {
+    // Stego image panel
+    const stegoImg   = document.getElementById('stego-img');
+    const stegoEmpty = document.getElementById('stego-empty');
+    const stegoDl    = document.getElementById('stego-download');
+    const stegoBadge = document.getElementById('stego-badge');
+    if (stegoImg)   { stegoImg.src = ''; stegoImg.style.display = 'none'; }
+    if (stegoEmpty) { stegoEmpty.style.display = 'flex'; }
+    if (stegoDl)    { stegoDl.style.display = 'none'; }
+    if (stegoBadge) { stegoBadge.textContent = 'Output'; stegoBadge.style.cssText = ''; }
+
+    // Histogram panel + card
+    const histCard  = document.getElementById('hist-card');
+    const histWrap  = document.getElementById('hist-wrap');
+    const histEmpty = document.getElementById('hist-empty');
+    const histImg   = document.getElementById('hist-img');
+    const histBadge = document.getElementById('hist-badge');
+    if (histCard)  { histCard.style.display = 'block'; }   // restore if hidden by AI mode
+    if (histWrap)  { histWrap.style.display = 'none'; }
+    if (histEmpty) { histEmpty.style.display = 'flex'; }
+    if (histImg)   { histImg.src = ''; }
+    if (histBadge) { histBadge.textContent = 'Histogram'; histBadge.style.cssText = ''; }
+
+    // Extraction output card
+    const extractCard = document.getElementById('extraction-output');
+    const extractMsg  = document.getElementById('extracted-message');
+    if (extractCard) { extractCard.style.display = 'none'; }
+    if (extractMsg)  { extractMsg.textContent = ''; extractMsg.classList.remove('error'); }
+
+    // Sidebar decrypted message panel
+    const sidebarResult = document.getElementById('sidebar-result');
+    const sidebarText   = document.getElementById('sidebar-result-text');
+    if (sidebarResult) { sidebarResult.style.display = 'none'; }
+    if (sidebarText)   { sidebarText.textContent = ''; }
+
+    // Security report card
+    const reportCard = document.getElementById('security-report');
+    const secGrid    = document.getElementById('security-grid');
+    if (reportCard) { reportCard.style.display = 'none'; }
+    if (secGrid)    { secGrid.innerHTML = ''; }
+
+    // AI steganalysis card
+    const aiCard   = document.getElementById('ai-card');
+    const aiBarFill = document.getElementById('ai-bar-fill');
+    if (aiCard)    { aiCard.style.display = 'none'; }
+    if (aiBarFill) { aiBarFill.style.width = '0%'; }
+
+    // Header metric chips
+    ['chip-psnr','chip-ssim','chip-res','chip-ecdh'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+}
+
+async function submitJob(action) {
+    const file = fileInput.files[0];
+    if (!file) { addAlert('error', '<i class="fas fa-circle-exclamation"></i> <span>Please select an image file first.</span>'); return; }
+    if (action === 'embed' && !msgInput.value.trim()) {
+        addAlert('error', '<i class="fas fa-circle-exclamation"></i> <span>Please enter a message to embed.</span>'); return;
+    }
+
+    clearAlerts();
+    clearDashboard();
+
+    // Disable buttons while processing
+    document.getElementById('btn-embed').disabled   = true;
+    document.getElementById('btn-extract').disabled = true;
+
+    const interval = startOverlay(action);
+
+    // Build FormData
+    const fd = new FormData(document.getElementById('main-form'));
+    fd.append('action', action);
+
+    try {
+        // ── Step 1: Submit job ─────────────────────────────────────────
+        const postResp = await fetch('/process', { method: 'POST', body: fd });
+        const postData = await postResp.json();
+
+        if (!postResp.ok || postData.error) {
+            throw new Error(postData.error || `Server error ${postResp.status}`);
+        }
+
+        const jobId = postData.job_id;
+
+        // ── Step 2: Poll /status/<job_id> ─────────────────────────────
+        await pollStatus(jobId, interval);
+
+        // Clear secret message after successful embed
+        if (action === 'embed') {
+            msgInput.value = '';
+            document.getElementById('char-count').textContent = '0';
+        }
+
+    } catch (err) {
+        stopOverlay(interval);
+        clearAlerts();
+        addAlert('error', `<i class="fas fa-circle-exclamation"></i> <span>${escHtml(err.message)}</span>`);
+    } finally {
+        document.getElementById('btn-embed').disabled   = false;
+        document.getElementById('btn-extract').disabled = false;
+    }
+}
+
+async function pollStatus(jobId, interval) {
+    const POLL_INTERVAL_MS = 500;
+    const MAX_POLLS = 240;   // 2 minutes max
+    let polls = 0;
+
+    return new Promise((resolve, reject) => {
+        const timer = setInterval(async () => {
+            polls++;
+            if (polls > MAX_POLLS) {
+                clearInterval(timer);
+                stopOverlay(interval);
+                reject(new Error('Processing timed out. Please try again.'));
+                return;
+            }
+
+            try {
+                const resp = await fetch(`/status/${jobId}`);
+                const data = await resp.json();
+
+                if (data.status === 'done') {
+                    clearInterval(timer);
+                    stopOverlay(interval);
+                    renderResult(data.result || {});
+                    resolve();
+
+                } else if (data.status === 'error') {
+                    clearInterval(timer);
+                    stopOverlay(interval);
+                    reject(new Error(data.error || 'Unknown server error.'));
+
+                }
+                // else: still pending/running — keep polling
+            } catch (fetchErr) {
+                clearInterval(timer);
+                stopOverlay(interval);
+                reject(fetchErr);
+            }
+        }, POLL_INTERVAL_MS);
+    });
+}
+
+/* Hide overlay on page show (back-nav) */
+window.addEventListener('pageshow', () => overlay.classList.remove('active'));
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Dark / Light Mode Toggle
+───────────────────────────────────────────────────────────────────────── */
+const themeToggle = document.getElementById('theme-toggle');
+const themeIcon   = document.getElementById('theme-icon');
+const themeLabel  = document.getElementById('theme-label');
+
+function applyTheme(dark) {
+    if (dark) {
+        document.documentElement.classList.add('dark');
+        themeIcon.className  = 'fas fa-sun';
+        themeLabel.textContent = 'Light Mode';
+    } else {
+        document.documentElement.classList.remove('dark');
+        themeIcon.className  = 'fas fa-moon';
+        themeLabel.textContent = 'Dark Mode';
+    }
+}
+
+// Restore saved preference (default: light)
+const savedDark = localStorage.getItem('stegai-dark') === 'true';
+applyTheme(savedDark);
+
+themeToggle.addEventListener('click', () => {
+    const nowDark = !document.documentElement.classList.contains('dark');
+    applyTheme(nowDark);
+    localStorage.setItem('stegai-dark', nowDark);
+});
 </script>
 
 </body>

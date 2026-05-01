@@ -132,11 +132,3 @@ def public_key_from_bytes(pub_bytes: bytes):
     """Deserialise an uncompressed EC point (65 bytes) into a public key object."""
     return ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), pub_bytes)
 
-
-# ---------------------------------------------------------------------------
-# Legacy shim — kept so old call-sites don't immediately break
-# ---------------------------------------------------------------------------
-
-def generate_keys():
-    """Deprecated shim. Use load_or_generate_receiver_keys() instead."""
-    return load_or_generate_receiver_keys()

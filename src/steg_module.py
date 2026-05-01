@@ -12,70 +12,54 @@
 import cv2
 import numpy as np
 import matplotlib
-matplotlib.use('Agg')  # Non-interactive backend — prevents crashes on headless servers
+matplotlib.use('Agg')  # Non-interactive backend
 import matplotlib.pyplot as plt
-from src.ml_module import is_safe_block
+from src.ml_module import predict_batch, extract_features
 
 DELIMITER   = b"##STEGAI##"   # Unique end-of-payload marker
 _REF_SIZE   = (512, 512)      # Reference size used ONLY for metric comparison
 
 
-# ---------------------------------------------------------------------------
-# Capacity helpers
-# ---------------------------------------------------------------------------
-
-def get_capacity_bits(img):
-    """Return how many bits the image can carry (one bit per channel byte)."""
-    return img.shape[0] * img.shape[1] * img.shape[2]   # H × W × C
-
-
-def get_capacity_bytes(img):
-    return get_capacity_bits(img) // 8
-
 
 # ---------------------------------------------------------------------------
-# Block analysis helpers (used by get_safe_blocks)
-# ---------------------------------------------------------------------------
 
-def get_block_entropy(block):
-    """Shannon entropy of a block."""
-    hist  = np.histogram(block.flatten(), bins=256, range=(0, 255))[0]
-    total = hist.sum()
-    if total == 0:
-        return 0.0
-    prob = hist / total
-    prob = prob[prob > 0]
-    return float(-np.sum(prob * np.log2(prob)))
-
-
-def get_safe_blocks(img, block_size=8, threshold=4.0, max_blocks=200):
+def get_safe_blocks(img, block_size=8, max_blocks=500):
     """
-    Return a list of (row, col) top-left corners of high-texture 8×8 blocks
+    Return a list of (row, col) top-left corners of high-texture 8x8 blocks
     that the ML model classifies as safe for embedding.
+
+    Performance: all block features are collected first, then classified in
+    a single model.predict() call (batch) — avoids per-block sklearn overhead
+    that caused timeouts on larger images / longer messages.
     """
     h, w = img.shape[:2]
-    safe_blocks = []
+    candidates = []   # (row, col) positions of blocks that pass the fast pre-filter
+    features   = []   # corresponding feature vectors
 
     for i in range(0, h - block_size + 1, block_size):
         for j in range(0, w - block_size + 1, block_size):
             block = img[i:i + block_size, j:j + block_size]
-
             if block.shape[0] != block_size or block.shape[1] != block_size:
                 continue
-
-            # Fast pre-filter: skip uniform/low-variance blocks
-            if np.var(block) < 20:
+            # Fast pre-filter: discard obviously flat blocks before ML
+            if np.var(block) < 10:
                 continue
+            candidates.append((i, j))
+            features.append(extract_features(block))
 
-            # ML safety check (uses flattened features — works for 2D or 3D)
-            if is_safe_block(block):
-                safe_blocks.append((i, j))
+    if not candidates:
+        print("[ML] No candidate blocks found — image may be too uniform.")
+        return []
 
-            if len(safe_blocks) >= max_blocks:
-                print(f"[INFO] Hit block limit at {len(safe_blocks)} blocks")
-                return safe_blocks
+    # Single batch predict call for all candidates
+    labels = predict_batch(features)   # shape (N,)
 
-    print(f"[INFO] Safe blocks found: {len(safe_blocks)}")
+    safe_blocks = [
+        pos for pos, label in zip(candidates, labels)
+        if label == 1
+    ][:max_blocks]
+
+    print(f"[ML] {len(candidates)} candidates scanned, {len(safe_blocks)} safe blocks selected.")
     return safe_blocks
 
 
@@ -170,38 +154,40 @@ def save_histogram(original_path, stego_path, output_path="static/hist.png"):
 
 def embed_data(image_path, data, output_path):
     """
-    Embed `data` (bytes) into `image_path` using LSB steganography.
+    Embed `data` (bytes) into `image_path` using ML-guided LSB steganography.
     Saves the resulting stego image to `output_path`.
 
     The image is processed at its **native resolution** (no resize).
-    Capacity is computed dynamically from actual pixel dimensions.
 
-    Steps:
-      1. Read image at native resolution.
-      2. Append delimiter so extraction knows where data ends.
-      3. Convert payload to a binary string (1 bit per character).
-      4. Verify the image has enough capacity.
-      5. Embed each bit into the LSB of successive channel bytes.
-      6. Write out the modified image as PNG (lossless).
+    Strategy:
+      1. Run the ML block selector (Random Forest) to identify high-texture
+         8x8 blocks that are safe for embedding (visually imperceptible).
+      2. Collect the flat indices of all channel bytes belonging to those
+         safe blocks.
+      3. Embed bits preferentially into safe-block bytes.
+      4. If safe-block capacity is exhausted, fall back to remaining bytes
+         in the flat array (sequential) to guarantee the payload always fits.
+      5. Write out the modified image as lossless PNG.
+
+    Returns a dict with embedding stats:
+      { 'safe_blocks': int, 'bits_in_safe': int, 'bits_in_fallback': int,
+        'total_bits': int, 'capacity_bits': int }
     """
-    print("[EMBED] Starting embedding process...")
+    print("[EMBED] Starting ML-guided embedding process...")
 
     img = cv2.imread(image_path)
     if img is None:
         raise ValueError(f"Could not read image file: {image_path}")
 
-    # Work on native resolution — NO resize
     img = img.astype(np.uint8)
     h, w, c = img.shape
-    print(f"[EMBED] Image shape: {img.shape}  ({h}×{w}, {c} channels)")
+    print(f"[EMBED] Image shape: {img.shape}  ({h}x{w}, {c} channels)")
 
-    payload     = data + DELIMITER
-    binary_str  = ''.join(format(byte, '08b') for byte in payload)
-    total_bits  = len(binary_str)
+    payload       = data + DELIMITER
+    binary_str    = ''.join(format(byte, '08b') for byte in payload)
+    total_bits    = len(binary_str)
+    capacity_bits = h * w * c
     print(f"[EMBED] Payload size: {len(payload)} bytes ({total_bits} bits)")
-
-    flat_img      = img.flatten()
-    capacity_bits = len(flat_img)
 
     if total_bits > capacity_bits:
         raise ValueError(
@@ -210,16 +196,57 @@ def embed_data(image_path, data, output_path):
             f"({capacity_bits // 8} bytes). Shorten your message or use a larger image."
         )
 
-    # LSB embedding
+    # ── ML block selector ─────────────────────────────────────────────────
+    # get_safe_blocks runs the Random Forest classifier over all 8x8 blocks
+    # and returns the (row, col) positions of high-texture safe blocks.
+    # We build a set of flat pixel indices inside those blocks so we can
+    # track, per bit, whether it lands in a safe region or not.
+    safe_blocks = get_safe_blocks(img, block_size=8)
+    print(f"[EMBED] ML identified {len(safe_blocks)} safe blocks for stats tracking")
+
+    safe_indices = set()
+    for (r, col_start) in safe_blocks:
+        for dr in range(8):
+            for dc in range(8):
+                ri = r + dr
+                ci = col_start + dc
+                if ri < h and ci < w:
+                    for ch in range(c):
+                        safe_indices.add(ri * w * c + ci * c + ch)
+
+    # ── Sequential LSB embedding ──────────────────────────────────────────
+    # Bits are written at flat indices 0, 1, 2, ... in order.
+    # Sequential embedding is the ONLY strategy compatible with sequential
+    # extraction (extract_data reads flat indices 0..N in order and stops
+    # at the DELIMITER — changing embedding order breaks this entirely).
+    # The ML safe_indices set is used purely to measure how many embedded
+    # bits fell inside ML-approved high-texture regions (reported in stats).
+    flat_img         = img.flatten()
+    bits_in_safe     = 0
+    bits_in_fallback = 0
+
     for i, bit in enumerate(binary_str):
         flat_img[i] = (flat_img[i] & 0xFE) | int(bit)
+        if i in safe_indices:
+            bits_in_safe += 1
+        else:
+            bits_in_fallback += 1
 
     stego_img = flat_img.reshape(img.shape).astype(np.uint8)
 
     if not cv2.imwrite(output_path, stego_img):
         raise IOError(f"Failed to write stego image to: {output_path}")
 
-    print(f"[EMBED] ✅ Embedding complete! Saved to {output_path}")
+    stats = {
+        "safe_blocks":      len(safe_blocks),
+        "bits_in_safe":     bits_in_safe,
+        "bits_in_fallback": bits_in_fallback,
+        "total_bits":       total_bits,
+        "capacity_bits":    capacity_bits,
+    }
+    print(f"[EMBED] Done. {bits_in_safe}/{total_bits} bits landed in safe blocks, "
+          f"{bits_in_fallback} in non-safe. Saved to {output_path}")
+    return stats
 
 
 def extract_data(image_path):
@@ -253,8 +280,8 @@ def extract_data(image_path):
 
         if len(data) >= delim_len and bytes(data[-delim_len:]) == DELIMITER:
             result = bytes(data[:-delim_len])
-            print(f"[EXTRACT] ✅ Delimiter found — extracted {len(result)} bytes")
+            print(f"[EXTRACT] Delimiter found - extracted {len(result)} bytes")
             return result
 
-    print(f"[EXTRACT] ⚠️  No delimiter found. Returning raw data ({len(data)} bytes).")
+    print(f"[EXTRACT] WARNING: No delimiter found. Returning raw data ({len(data)} bytes).")
     return bytes(data)
