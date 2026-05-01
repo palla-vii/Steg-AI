@@ -37,14 +37,15 @@ app = Flask(__name__)
 # Refuse uploads larger than 10 MB
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024   # 10 MB
 
-UPLOAD_FOLDER    = "uploads"
-RESULT_FOLDER    = "results"
+# Folders — read from env so cloud platforms can point these at /tmp
+# or a persistent volume without code changes.
+UPLOAD_FOLDER    = os.environ.get("UPLOAD_DIR",  "uploads")
+RESULT_FOLDER    = os.environ.get("RESULT_DIR",  "results")
 ALLOWED_EXTENSIONS = {"png", "bmp", "tiff", "webp", "jpg", "jpeg"}
 LOSSY_EXTENSIONS   = {"jpg", "jpeg"}   # LSB is destroyed by their compression
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(RESULT_FOLDER, exist_ok=True)
-os.makedirs("static",      exist_ok=True)
 
 # Load persistent receiver key pair (generated once if missing)
 receiver_private_key, receiver_public_key = load_or_generate_receiver_keys()
@@ -87,6 +88,23 @@ def allowed_file(filename: str) -> bool:
 
 def is_lossy(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in LOSSY_EXTENSIONS
+
+
+def _cleanup_old_files(max_age_seconds: int = 1800):
+    """Delete files older than max_age_seconds from upload and result folders."""
+    import time
+    cutoff = time.time() - max_age_seconds
+    for folder in (UPLOAD_FOLDER, RESULT_FOLDER):
+        try:
+            for fname in os.listdir(folder):
+                fpath = os.path.join(folder, fname)
+                try:
+                    if os.path.isfile(fpath) and os.path.getmtime(fpath) < cutoff:
+                        os.remove(fpath)
+                except OSError:
+                    pass
+        except OSError:
+            pass
 
 
 # ---------------------------------------------------------------------------
@@ -133,11 +151,13 @@ def _run_job(job_id: str, action: str, filepath: str, filename: str, message_tex
             result["psnr"] = calculate_psnr(filepath, output_path)
             result["ssim"] = calculate_ssim(filepath, output_path)
 
-            # Histogram (non-fatal)
+            # Histogram — saved to RESULT_FOLDER (not static/) so it works
+            # on read-only deployments; served via the /results/ route.
             try:
-                hist_path = f"static/hist_{job_id}.png"
+                hist_name = f"hist_{job_id}.png"
+                hist_path = os.path.join(RESULT_FOLDER, hist_name)
                 save_histogram(filepath, output_path, output_path=hist_path)
-                result["histogram"] = f"/{hist_path}"
+                result["histogram"] = f"/results/{hist_name}"
             except Exception as hist_err:
                 print(f"[WARNING] Histogram failed: {hist_err}")
                 result["histogram"] = None
@@ -195,6 +215,15 @@ def _run_job(job_id: str, action: str, filepath: str, filename: str, message_tex
     except Exception as exc:
         print(f"[ERROR] job {job_id}: {exc}")
         _set_job(job_id, status="error", result=None, error=str(exc))
+
+    finally:
+        # Remove the uploaded source file — no longer needed after processing
+        try:
+            os.remove(filepath)
+        except OSError:
+            pass
+        # Purge files older than 30 minutes to keep disk usage in check
+        threading.Thread(target=_cleanup_old_files, daemon=True).start()
 
 
 # ---------------------------------------------------------------------------
@@ -307,12 +336,12 @@ def analyse_only():
 
 @app.route("/uploads/<filename>")
 def uploaded_file(filename):
-    return send_from_directory("uploads", filename)
+    return send_from_directory(UPLOAD_FOLDER, filename)
 
 
 @app.route("/results/<filename>")
 def result_file(filename):
-    return send_from_directory("results", filename, as_attachment=True)
+    return send_from_directory(RESULT_FOLDER, filename, as_attachment=True)
 
 
 # ---------------------------------------------------------------------------

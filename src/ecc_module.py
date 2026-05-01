@@ -66,11 +66,29 @@ def _save_keys(private_key):
 
 def load_or_generate_receiver_keys():
     """
-    Load the persistent receiver key pair from disk.
-    If the PEM files do not exist, generate a new pair and save it.
+    Load the persistent receiver key pair.
+
+    Priority order:
+      1. RECEIVER_KEY environment variable  — for cloud deployments where the
+         PEM is stored as a secret (set in Render/Railway/Fly dashboard).
+      2. keys/receiver_private.pem on disk  — for local development.
+      3. Generate a new pair and save to disk — first-run fallback.
 
     Returns: (private_key, public_key)
     """
+    # 1. Environment variable (cloud-friendly)
+    env_pem = os.environ.get("RECEIVER_KEY", "")
+    if env_pem.strip():
+        try:
+            # Allow the env var to use literal \n instead of real newlines
+            pem_bytes = env_pem.replace("\\n", "\n").encode()
+            private_key = serialization.load_pem_private_key(pem_bytes, password=None)
+            print("[ECC] Loaded receiver key pair from RECEIVER_KEY env var.")
+            return private_key, private_key.public_key()
+        except Exception as e:
+            print(f"[ECC] WARNING: RECEIVER_KEY env var set but failed to parse: {e}")
+
+    # 2. PEM file on disk (local dev)
     if os.path.exists(PRIVATE_KEY_PATH):
         with open(PRIVATE_KEY_PATH, "rb") as f:
             private_key = serialization.load_pem_private_key(f.read(), password=None)
@@ -78,6 +96,7 @@ def load_or_generate_receiver_keys():
         print("[ECC] Loaded persistent receiver key pair from disk.")
         return private_key, public_key
 
+    # 3. Generate new pair
     print("[ECC] No key files found — generating new receiver key pair.")
     private_key = ec.generate_private_key(ec.SECP256R1())
     _save_keys(private_key)
