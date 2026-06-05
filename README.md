@@ -21,7 +21,7 @@ Steg-AI is a web application that lets you hide secret messages inside ordinary 
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -98,7 +98,7 @@ Steg-AI/
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -131,7 +131,7 @@ Then open your browser at `http://127.0.0.1:5000`
 
 ---
 
-## 🖥️ Usage
+## Usage
 
 ### Embed a Message
 
@@ -160,7 +160,7 @@ Upload any image via the **Analyse** tab to get a neural steganalysis verdict:
 
 ---
 
-## 🔬 How the AI Works
+## How the AI Works
 
 ### Embedding — ML Block Selector
 
@@ -182,7 +182,7 @@ The MLP is trained on 2,000 synthetic image pairs (1,000 clean + 1,000 stego) wi
 
 ---
 
-## 🌐 Deployment
+## Deployment
 
 The app is configured to deploy on **Render** via `render.yaml`:
 
@@ -221,6 +221,6 @@ services:
 
 ---
 
-## 📄 License
+## License
 
 This project was developed as a **Senior Design Project (SDP)**. All rights reserved by the author.
