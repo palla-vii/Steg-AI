@@ -1,8 +1,8 @@
 # app.py — StegAI Flask Application
 #
-# ML-guided LSB steganography with AES-256-GCM encryption and
+# AI-guided LSB steganography with AES-256-GCM encryption and
 # ephemeral ECDH (SECP256R1) key exchange.
-# Async job processing via background threads + /status polling.
+
 
 import os
 import uuid
