@@ -1,6 +1,6 @@
 # 🔐 Steg-AI
 
-**AI-guided image steganography with end-to-end encryption**
+**AI-guided secure image steganography with end-to-end encryption**
 
 Steg-AI is a web application that lets you hide secret messages inside ordinary images using **ML-guided LSB steganography**, secured with **AES-256-GCM** encryption and **ephemeral ECDH (SECP256R1)** key exchange. A built-in **neural steganalysis detector** can also analyze images and report whether hidden data is likely present.
 
@@ -10,14 +10,14 @@ Steg-AI is a web application that lets you hide secret messages inside ordinary 
 
 | Feature | Description |
 |---|---|
-| 🤖 **ML-Guided Embedding** | A Random Forest classifier identifies high-texture 8×8 blocks where data can be hidden with minimal visual impact |
-| 🔒 **AES-256-GCM Encryption** | All messages are encrypted before embedding — only the receiver can decrypt |
-| 🔑 **Ephemeral ECDH Key Exchange** | A fresh key pair is generated per message; the raw AES key is never stored or transmitted |
-| 🧠 **Neural Steganalysis** | An MLP neural network analyzes images for statistical anomalies and reports a detection verdict |
-| 📊 **Quality Metrics** | PSNR and SSIM scores measure how visually similar the stego image is to the original |
-| 📈 **Pixel Histograms** | Side-by-side histograms compare original vs. stego image pixel distributions |
-| ⚡ **Async Processing** | Embed/extract jobs run in background threads; the UI polls for completion — no blocking |
-| 🧹 **Auto Cleanup** | Uploaded and result files are auto-purged after 30 minutes |
+|**ML-Guided Embedding** | A Random Forest classifier identifies high-texture 8×8 blocks where data can be hidden with minimal visual impact |
+|**AES-256-GCM Encryption** | All messages are encrypted before embedding — only the receiver can decrypt |
+|**Ephemeral ECDH Key Exchange** | A fresh key pair is generated per message; the raw AES key is never stored or transmitted |
+|**Neural Steganalysis** | An MLP neural network analyzes images for statistical anomalies and reports a detection verdict |
+|**Quality Metrics** | PSNR and SSIM scores measure how visually similar the stego image is to the original |
+|**Pixel Histograms** | Side-by-side histograms compare original vs. stego image pixel distributions |
+|**Async Processing** | Embed/extract jobs run in background threads; the UI polls for completion — no blocking |
+|**Auto Cleanup** | Uploaded and result files are auto-purged after 30 minutes |
 
 ---
 
@@ -25,15 +25,15 @@ Steg-AI is a web application that lets you hide secret messages inside ordinary 
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                      Flask Web App                       │
+│                      Flask Web App                      │
 │                        app.py                           │
 └────────┬────────────────────────────────────┬───────────┘
          │                                    │
    ┌─────▼──────┐                    ┌────────▼────────┐
-   │ ECC Module │                    │   Steg Module   │
-   │ecc_module.py│                   │ steg_module.py  │
-   │            │                    │                 │
-   │ ECDH key   │                    │ ML block select │
+   │ ECC Module │                    │   Steg Module    │
+   │ecc_module.py│                   │ steg_module.py   │
+   │            │                    │                  │
+   │ ECDH key   │                    │ ML block select  │
    │ exchange   │                    │ LSB embed/extract│
    └─────┬──────┘                    └────────┬────────┘
          │                                    │
@@ -223,4 +223,4 @@ services:
 
 ## 📄 License
 
-This project was developed as a **Senior Design Project (SDP)**. All rights reserved by the authors.
+This project was developed as a **Senior Design Project (SDP)**. All rights reserved by the author.
