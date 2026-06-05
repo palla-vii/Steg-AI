@@ -59,16 +59,13 @@
             <!-- Three action buttons -->
             <div class="landing-btn-row">
                 <button class="landing-btn landing-btn-embed" onclick="launchAction('embed')">
-                    <i class="fas fa-lock"></i>
-                    <span>Encrypt &amp; Embed</span>
+                    Encrypt &amp; Embed
                 </button>
                 <button class="landing-btn landing-btn-extract" onclick="launchAction('extract')">
-                    <i class="fas fa-magnifying-glass"></i>
-                    <span>Extract &amp; Decrypt</span>
+                    Extract &amp; Decrypt
                 </button>
                 <button class="landing-btn landing-btn-ai" onclick="launchAction('ai')">
-                    <i class="fas fa-brain"></i>
-                    <span>AI Steganalysis</span>
+                    Analyse Image
                 </button>
             </div>
 
@@ -148,13 +145,13 @@
 
         <div class="btn-group">
             <button type="button" class="btn btn-embed" id="btn-embed" onclick="submitJob('embed')">
-                <i class="fas fa-lock"></i> Encrypt &amp; Embed
+                Encrypt &amp; Embed
             </button>
             <button type="button" class="btn btn-extract" id="btn-extract" onclick="submitJob('extract')">
-                <i class="fas fa-magnifying-glass"></i> Extract &amp; Decrypt
+                Extract &amp; Decrypt
             </button>
             <button type="button" class="btn btn-ai" id="btn-ai" onclick="runAiAnalysis()">
-                <i class="fas fa-brain"></i> AI Steganalysis
+                Analyse Image
             </button>
         </div>
 
@@ -764,7 +761,7 @@ async function runAiAnalysis() {
     btnAi.disabled      = true;
     btnEmbed.disabled   = true;
     btnExtract.disabled = true;
-    btnAi.innerHTML     = '<i class="fas fa-spinner fa-spin"></i> Analysing…';
+    btnAi.innerHTML     = 'Analysing…';
 
     try {
         const fd = new FormData();
@@ -786,7 +783,7 @@ async function runAiAnalysis() {
         btnAi.disabled      = false;
         btnEmbed.disabled   = false;
         btnExtract.disabled = false;
-        btnAi.innerHTML     = '<i class="fas fa-brain"></i> AI Steganalysis';
+        btnAi.innerHTML     = 'Analyse Image';
     }
 }
 
