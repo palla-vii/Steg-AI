@@ -27,9 +27,11 @@ dist/
 build/
 *.egg-info/
 
-# Documentation & reports (not for repo)
-*.md
+# Reports / large binary docs (not for repo)
 *.pdf
+
+# Learning guide (local only)
+Learning guide/
 
 # Runtime-generated files
 results/
