@@ -1,4 +1,4 @@
-# 🔐 Steg-AI
+# Steg-AI
 
 **AI-guided secure image steganography with end-to-end encryption**
 
@@ -6,7 +6,7 @@ Steg-AI is a web application that lets you hide secret messages inside ordinary 
 
 ---
 
-## ✨ Features
+## Features
 
 | Feature | Description |
 |---|---|
@@ -68,7 +68,7 @@ Every embedded message uses this binary layout:
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 Steg-AI/
@@ -90,8 +90,8 @@ Steg-AI/
 │   └── index.html              # Single-page web UI
 ├── static/                     # CSS, JS, icons
 ├── keys/                       # Receiver key pair (auto-generated)
-│   └── receiver_public.pem     # ✅ Safe to commit
-│   # receiver_private.pem      # 🚫 Never committed (.gitignored)
+│   └── receiver_public.pem     # Safe to commit
+│   # receiver_private.pem      #  Never committed (.gitignored)
 ├── uploads/                    # Temp uploads (auto-cleaned, .gitignored)
 └── results/                    # Stego output images (auto-cleaned, .gitignored)
 ```
@@ -179,6 +179,8 @@ The MLP detector (`steg_detector.py`) extracts 7 statistical features from any i
 7. **Diagonal LSB autocorrelation** — content-insensitive spatial correlation
 
 The MLP is trained on 2,000 synthetic image pairs (1,000 clean + 1,000 stego) with realistic multi-scale texture noise to avoid false positives on natural photographs.
+<img width="698" height="626" alt="image" src="https://github.com/user-attachments/assets/df16fc92-9d38-4a74-a473-4a4b9b710c0c" />
+
 
 ---
 
@@ -198,7 +200,7 @@ services:
 
 ---
 
-## 📦 Dependencies
+## Dependencies
 
 | Package | Purpose |
 |---|---|
@@ -212,7 +214,7 @@ services:
 
 ---
 
-## ⚠️ Limitations
+## Limitations
 
 - **JPEG/JPEG2000 are lossy** — compression destroys LSB data. Always use PNG, BMP, TIFF, or WebP for stego output.
 - **Short messages are undetectable by design** — they occupy < 1% of pixels, leaving no meaningful statistical signal.
